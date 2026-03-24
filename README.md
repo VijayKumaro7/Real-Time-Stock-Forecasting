@@ -1,4 +1,4 @@
-
+pu people 
 <div align="center">
   <img src="https://img.shields.io/github/stars/VIJAYKUMAR00O7/Real-Time-Stock-Forecasting?style=social">
   <img src="https://img.shields.io/github/forks/VIJAYKUMAR00O7/Real-Time-Stock-Forecasting?style=social">
