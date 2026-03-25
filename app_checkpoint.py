@@ -445,7 +445,7 @@ df_with_indicators = add_technical_indicators(df)
 # ############################################################
 # Enhanced Plotly Charts
 # ############################################################
-def create_enhanced_forecast_chart(historical_df, prediction_df, title, color_scheme):
+def create_enhanced_forecast_chart(historical_df, prediction_df, title, color_scheme, show_ci=False, ci_pct=5.0):
     fig = go.Figure()
 
     # Historical data
@@ -460,9 +460,26 @@ def create_enhanced_forecast_chart(historical_df, prediction_df, title, color_sc
 
     # Predictions
     pred_col = prediction_df.columns[0]
+    pred_values = prediction_df[pred_col]
+
+    # Confidence interval band (shaded region around forecast)
+    if show_ci:
+        upper = pred_values * (1 + ci_pct / 100)
+        lower = pred_values * (1 - ci_pct / 100)
+        dates = prediction_df.index.tolist()
+        fig.add_trace(go.Scatter(
+            x=dates + dates[::-1],
+            y=upper.tolist() + lower.tolist()[::-1],
+            fill='toself',
+            fillcolor=color_scheme.get('ci', 'rgba(200, 200, 200, 0.2)'),
+            line=dict(color='rgba(0,0,0,0)'),
+            name=f'Confidence Band (±{ci_pct:.1f}%)',
+            hoverinfo='skip',
+        ))
+
     fig.add_trace(go.Scatter(
         x=prediction_df.index,
-        y=prediction_df[pred_col],
+        y=pred_values,
         mode='lines+markers',
         name='Forecast',
         line=dict(color=color_scheme['prediction'], width=3, dash='dot'),
@@ -516,9 +533,9 @@ st.markdown(f"""
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["🔮 LSTM", "🚀 XGBoost", "📊 ARIMA", "📈 Technical Analysis", "⚡ Dashboard"])
 
 color_schemes = {
-    'lstm': {'historical': '#1f77b4', 'prediction': '#ff7f0e'},
-    'xgboost': {'historical': '#2ca02c', 'prediction': '#d62728'},
-    'arima': {'historical': '#9467bd', 'prediction': '#8c564b'}
+    'lstm': {'historical': '#1f77b4', 'prediction': '#ff7f0e', 'ci': 'rgba(255, 127, 14, 0.2)'},
+    'xgboost': {'historical': '#2ca02c', 'prediction': '#d62728', 'ci': 'rgba(214, 39, 40, 0.2)'},
+    'arima': {'historical': '#9467bd', 'prediction': '#8c564b', 'ci': 'rgba(140, 86, 75, 0.2)'}
 }
 
 with tab1:
@@ -526,7 +543,7 @@ with tab1:
 
     with col1:
         st.subheader("📈 LSTM Deep Learning Forecast")
-        lstm_chart = create_enhanced_forecast_chart(df, lstm_preds, "LSTM Neural Network Prediction", color_schemes['lstm'])
+        lstm_chart = create_enhanced_forecast_chart(df, lstm_preds, "LSTM Neural Network Prediction", color_schemes['lstm'], show_ci=show_confidence, ci_pct=volatility * 2)
         st.plotly_chart(lstm_chart, use_container_width=True)
 
     with col2:
@@ -558,7 +575,7 @@ with tab2:
 
     with col1:
         st.subheader("📊 XGBoost Gradient Boosting Forecast")
-        xgb_chart = create_enhanced_forecast_chart(df, xgb_preds, "XGBoost Machine Learning Prediction", color_schemes['xgboost'])
+        xgb_chart = create_enhanced_forecast_chart(df, xgb_preds, "XGBoost Machine Learning Prediction", color_schemes['xgboost'], show_ci=show_confidence, ci_pct=volatility * 2)
         st.plotly_chart(xgb_chart, use_container_width=True)
 
     with col2:
@@ -588,7 +605,7 @@ with tab3:
 
     with col1:
         st.subheader("📉 ARIMA Time Series Forecast")
-        arima_chart = create_enhanced_forecast_chart(df, arima_preds, "ARIMA Statistical Prediction", color_schemes['arima'])
+        arima_chart = create_enhanced_forecast_chart(df, arima_preds, "ARIMA Statistical Prediction", color_schemes['arima'], show_ci=show_confidence, ci_pct=volatility * 2)
         st.plotly_chart(arima_chart, use_container_width=True)
 
     with col2:
