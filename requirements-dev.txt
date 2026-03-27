@@ -1,0 +1,7 @@
+pytest>=7.0
+pytest-cov>=4.0
+numpy
+pandas
+scikit-learn
+xgboost
+statsmodels
