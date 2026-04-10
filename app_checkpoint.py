@@ -51,6 +51,11 @@ import xgboost as xgb
 # Statsmodels for ARIMA
 import statsmodels.api as sm
 
+# Auth utilities (standard library only — no extra deps)
+import hashlib
+import json
+import os
+
 # -----------------------------------------------------------
 # Page Config & Custom CSS
 # -----------------------------------------------------------
@@ -81,6 +86,114 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# -----------------------------------------------------------
+# Auth Utilities
+# -----------------------------------------------------------
+_USERS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "users.json")
+
+
+def _hash_password(password):
+    """Return SHA-256 hex digest of *password*."""
+    return hashlib.sha256(password.encode()).hexdigest()
+
+
+def _load_users():
+    """Load {username: hashed_password} dict from disk."""
+    if not os.path.exists(_USERS_FILE):
+        return {}
+    with open(_USERS_FILE, "r") as f:
+        return json.load(f)
+
+
+def _save_users(users):
+    """Persist the users dict to disk."""
+    with open(_USERS_FILE, "w") as f:
+        json.dump(users, f, indent=2)
+
+
+def _register_user(username, password):
+    """Register a new user. Returns (success: bool, message: str)."""
+    username = username.strip()
+    if not username or not password:
+        return False, "Username and password cannot be empty."
+    users = _load_users()
+    if username in users:
+        return False, "Username already exists. Please choose a different one."
+    users[username] = _hash_password(password)
+    _save_users(users)
+    return True, "Account created! You can now log in."
+
+
+def _authenticate_user(username, password):
+    """Return True when the credentials match a stored user."""
+    users = _load_users()
+    return users.get(username.strip()) == _hash_password(password)
+
+
+def _show_auth_page():
+    """Render the Login / Sign-Up page and block the rest of the app."""
+    st.markdown("""
+    <style>
+        .auth-header { text-align: center; margin-bottom: 0.25rem; }
+        .auth-sub { text-align: center; color: #888; margin-bottom: 1.5rem; }
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown("<h1 class='auth-header'>📈 Market Forecasting Dashboard</h1>", unsafe_allow_html=True)
+    st.markdown(
+        "<p class='auth-sub'>Sign in to access AI-powered stock predictions</p>",
+        unsafe_allow_html=True,
+    )
+    st.markdown("---")
+
+    login_tab, signup_tab = st.tabs(["🔐 Login", "📝 Sign Up"])
+
+    with login_tab:
+        with st.form("login_form"):
+            username = st.text_input("Username", placeholder="Enter your username")
+            password = st.text_input("Password", type="password", placeholder="Enter your password")
+            submitted = st.form_submit_button("Login", use_container_width=True, type="primary")
+        if submitted:
+            if _authenticate_user(username, password):
+                st.session_state.authenticated = True
+                st.session_state.current_user = username.strip()
+                st.rerun()
+            else:
+                st.error("Invalid username or password.")
+
+    with signup_tab:
+        with st.form("signup_form"):
+            new_username = st.text_input("Choose a Username", placeholder="e.g. john_doe")
+            new_password = st.text_input("Choose a Password", type="password", placeholder="At least 6 characters")
+            confirm_password = st.text_input("Confirm Password", type="password", placeholder="Repeat your password")
+            submitted_signup = st.form_submit_button("Create Account", use_container_width=True, type="primary")
+        if submitted_signup:
+            if new_password != confirm_password:
+                st.error("Passwords do not match.")
+            elif len(new_password) < 6:
+                st.error("Password must be at least 6 characters.")
+            else:
+                ok, msg = _register_user(new_username, new_password)
+                if ok:
+                    st.success(msg)
+                else:
+                    st.error(msg)
+
+
+# -----------------------------------------------------------
+# Auth Gate — blocks the dashboard until the user is signed in
+# -----------------------------------------------------------
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+    st.session_state.current_user = ""
+
+if not st.session_state.authenticated:
+    _show_auth_page()
+    st.stop()
+
+# -----------------------------------------------------------
+# Dashboard (only reached when authenticated)
+# -----------------------------------------------------------
 st.title("📈 Real-Time Market Price Forecasting Dashboard")
 st.markdown("*Advanced AI-Powered Stock Prediction with LSTM, XGBoost & ARIMA*")
 
@@ -88,6 +201,14 @@ st.markdown("*Advanced AI-Powered Stock Prediction with LSTM, XGBoost & ARIMA*")
 # Sidebar – Enhanced Inputs
 # -----------------------------------------------------------
 st.sidebar.header("📊 Configuration")
+
+# User info & logout
+st.sidebar.markdown(f"👤 **{st.session_state.current_user}**")
+if st.sidebar.button("🚪 Logout", use_container_width=True):
+    st.session_state.authenticated = False
+    st.session_state.current_user = ""
+    st.rerun()
+st.sidebar.markdown("---")
 
 # Stock selection with popular options
 popular_stocks = {
