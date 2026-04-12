@@ -18,6 +18,7 @@
 
 ## 🌟 Features
 
+- 🔐 **User Authentication** — secure login and sign-up with hashed credentials
 - ⚡ **Real-time data retrieval** via Yahoo Finance API
 - 🤖 **LSTM Neural Networks** for deep learning-based price prediction
 - 🌲 **XGBoost** for gradient boosting-based forecasting
@@ -43,6 +44,7 @@
 | **Data Source** | yfinance (Yahoo Finance API) |
 | **Visualization** | Plotly, Matplotlib, Seaborn |
 | **Data Processing** | Pandas, NumPy |
+| **Testing** | pytest, pytest-cov |
 
 ---
 
@@ -50,25 +52,38 @@
 
 ```
 Real-Time-Stock-Forecasting/
-├── app_checkpoint.py              # Main application (LSTM + XGBoost + ARIMA)
-├── app-checkpoint.ipynb           # Jupyter notebook version of main app
-├── Streamlit code/
-│   ├── app.py                     # Simplified LSTM-only Streamlit app
-│   ├── app-checkpoint.py          # Intermediate app (LSTM + Prophet)
-│   └── app.ipynb                  # Notebook version
-├── src_model_code/
-│   ├── Full_model_code.ipynb      # Full model development notebook
+├── src/
+│   ├── __init__.py
+│   └── forecasting.py              # Pure business logic — no Streamlit deps, fully testable
+├── tests/
+│   ├── conftest.py                 # Shared pytest fixtures
+│   ├── test_confidence.py          # Confidence scoring tests
+│   ├── test_data_loading.py        # yfinance mocked data-loading tests
+│   ├── test_features.py            # XGBoost feature engineering tests
+│   ├── test_metrics.py             # Model performance metrics tests
+│   ├── test_models.py              # LSTM & XGBoost architecture tests
+│   ├── test_preprocessing.py       # LSTM windowing/scaling tests
+│   └── test_signals.py             # Trading signal generation tests
+├── src_model_code/                 # Research/development notebooks
+│   ├── Full_model_code.ipynb
 │   └── LSTM_Model/
-│       └── lstm_pipeline.ipynb    # Dedicated LSTM pipeline notebook
+│       └── lstm_pipeline.ipynb
+├── Streamlit code/
+│   ├── app.py                      # Simplified LSTM-only Streamlit app
+│   └── app.ipynb
 ├── README/
-│   └── requirements.txt           # Core dependencies list
+│   └── requirements.txt            # Core library dependencies
 ├── .devcontainer/
-│   └── devcontainer.json          # Dev container configuration
+│   └── devcontainer.json           # Dev container configuration
 ├── .github/
 │   └── workflows/
-│       ├── python-publish.yml     # PyPI publish workflow
-│       └── python-package-conda.yml # Conda test workflow
-└── Requirements.txt
+│       ├── python-publish.yml      # CD: publish to PyPI on release
+│       └── python-package-conda.yml # CI: lint + test on push
+├── app_checkpoint.py               # Main full-featured Streamlit app
+├── Requirements.txt                # Streamlit app dependencies
+├── requirements-dev.txt            # Dev/test dependencies
+├── pytest.ini                      # Pytest configuration
+└── CLAUDE.md                       # AI assistant guide for this repo
 ```
 
 ---
@@ -97,14 +112,18 @@ myenv\Scripts\activate
 ### 3. Install dependencies
 
 ```bash
-pip install streamlit yfinance pandas numpy plotly scikit-learn tensorflow xgboost statsmodels matplotlib seaborn
+# Core app dependencies
+pip install -r README/requirements.txt
+
+# Development & testing dependencies
+pip install -r requirements-dev.txt
 ```
 
 ---
 
 ## ▶️ Running the Application
 
-### Full-featured app (LSTM + XGBoost + ARIMA)
+### Full-featured app (LSTM + XGBoost + ARIMA + Auth)
 
 ```bash
 streamlit run app_checkpoint.py
@@ -118,11 +137,15 @@ streamlit run "Streamlit code/app.py"
 
 The app runs on `http://localhost:8501` by default.
 
+> **First run:** Use the **Sign Up** tab to create an account, then log in with those credentials. User data is stored locally in `users.json` (not committed to git).
+
 ---
 
 ## 💡 How It Works
 
 ```
+Sign Up / Login (hashed credentials stored locally)
+           ↓
 User Input (Ticker, Date Range, Forecast Days)
            ↓
 Yahoo Finance API — Live & Historical Data
@@ -155,7 +178,7 @@ Interactive Streamlit Dashboard
 ### XGBoost
 - Lag features: 1, 2, 3, 5, 7, 10 days
 - Moving averages: 5-day and 10-day
-- 200 estimators, learning rate 0.05
+- 200 estimators, learning rate 0.05, max depth 4
 - Recursive multi-step forecasting
 
 ### ARIMA
@@ -196,6 +219,21 @@ Interactive Streamlit Dashboard
 | **US Stocks** | `AAPL`, `GOOGL`, `TSLA`, `MSFT`, `AMZN` |
 | **Indian Stocks (NSE)** | `TATAMOTORS.NS`, `RELIANCE.NS`, `INFY.NS` |
 | **Indian Stocks (BSE)** | `TATAMOTORS.BO`, `RELIANCE.BO` |
+
+---
+
+## 🧪 Testing
+
+The project ships with 80+ unit tests covering all core business logic.
+
+```bash
+pytest                        # Run all tests
+pytest -v                     # Verbose output
+pytest --cov=src              # With coverage report
+pytest tests/test_signals.py  # Run a single module
+```
+
+Tests are isolated — no network calls are made (yfinance is mocked). All business logic under test lives in `src/forecasting.py`.
 
 ---
 
